@@ -22,21 +22,22 @@ def client_thread(client, q, buffer_size):
 			client.send('> '.encode('ascii'))
 			data = client.recv(buffer_size)		# BLOCKING FUNCTION!!!
 			data = data.decode('ascii')
+			if data == '':
+				break
 			q.put([json.dumps({'event' : 'receive_data', 'data' : data, 'client_from' : client_from})])
 			client.send('< {}'.format(data).encode('ascii'))
 			q.put([json.dumps({'event' : 'send_data', 'data' : data, 'client_from' : client_from})])
 			if data[:-2] == 'quit':
 				break
 		client.shutdown(socket.SHUT_RDWR)
-		client.close()
 	except BrokenPipeError:
 		pass
 	except socket.timeout:
 		client.shutdown(socket.SHUT_RDWR)
-		client.close()
 	except KeyboardInterrupt:
 		pass
 	finally:
+		client.close()
 		q.put([json.dumps({'event' : 'client_disconnect', 'client_from' : client_from})])
 
 def server_thread(server, q, buffer_size, timeout_seconds):
