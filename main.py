@@ -42,12 +42,10 @@ def client_thread(client, q, buffer_size):
 def server_thread(server, q, buffer_size, timeout_seconds):
 	try:
 		while True:
-			active_client_threads = []
 			client, client_from = server.accept()		# BLOCKING FUNCTION!!!
 			client.settimeout(timeout_seconds)
 			thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size))
 			q.put([json.dumps({'event' : 'newclient', 'client_from' : client_from})])
-			active_client_threads.append(thread)
 			thread.daemon = True
 			thread.start()
 	except KeyboardInterrupt:
@@ -56,7 +54,6 @@ def server_thread(server, q, buffer_size, timeout_seconds):
 def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds):
 	try:
 		q = multiprocessing.Queue()
-		jobs = []
 		connected_clients = 0
 		server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -67,7 +64,6 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds):
 		server_ip, server_port = server.getsockname()
 		print('Server started on {}:{}'.format(server_ip, server_port))
 		thread = multiprocessing.Process(target=server_thread, args=(server, q, buffer_size, timeout_seconds))
-		jobs.append(thread)
 		thread.daemon = False
 		thread.start()
 		while True:
