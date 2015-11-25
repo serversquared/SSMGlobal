@@ -27,7 +27,8 @@ def cmd_help(*args, **kwargs):
 
 def cmd_hw(*args, **kwargs):
 	client_from = args[0].getpeername()
-	for i in range(int(args[2])):
+	iters = (len(args) > 2 and args[2]) or 1
+	for i in range(int(iters)):
 		args[0].send('Hello, world!\r\n'.encode('ascii'))
 	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Hello world message)', 'client_from' : client_from})])
 # End command functions
