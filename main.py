@@ -12,6 +12,20 @@ default_bound_port = 53450
 default_buffer_size = 1024
 default_timeout = 10
 
+# Command functions
+def cmd_quit(*args, **kwargs):
+	return True
+
+def cmd_hw(*args, **kwargs):
+	for i in range(int(args[2])):
+		args[0].send('Hello, world!\r\n'.encode('ascii'))
+# End command functions
+
+command_dispatch = {
+	'quit' : cmd_quit,
+	'hw' : cmd_hw
+}
+
 def safe_string(dangerous_string):
 	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033', '[ESC]')
 
@@ -25,9 +39,19 @@ def client_thread(client, q, buffer_size):
 			if data == '':
 				break
 			q.put([json.dumps({'event' : 'receive_data', 'data' : data, 'client_from' : client_from})])
-			client.send('< {}'.format(data).encode('ascii'))
-			q.put([json.dumps({'event' : 'send_data', 'data' : data, 'client_from' : client_from})])
-			if data[:-2] == 'quit':
+			try:
+				command_args = data[:-2].split()
+				do_break = command_dispatch[command_args[0]](client, q, *command_args[1:])
+				if do_break:
+					break
+			except KeyError:
+				client.send('< {}'.format(data).encode('ascii'))
+				q.put([json.dumps({'event' : 'send_data', 'data' : data, 'client_from' : client_from})])
+			except ValueError:
+				data = 'ERROR: ValueError\r\n'
+				client.send(data.encode('ascii'))
+				q.put([json.dumps({'event' : 'send_data', 'data' : data, 'client_from' : client_from})])
+			except BaseException:
 				break
 		client.shutdown(socket.SHUT_RDWR)
 	except BrokenPipeError:
