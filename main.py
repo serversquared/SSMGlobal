@@ -37,7 +37,7 @@ def client_thread(client, q, buffer_size):
 	except KeyboardInterrupt:
 		pass
 	finally:
-		q.put([json.dumps({'event' : 'lostclient', 'client_from' : client_from})])
+		q.put([json.dumps({'event' : 'client_disconnect', 'client_from' : client_from})])
 
 def server_thread(server, q, buffer_size, timeout_seconds):
 	try:
@@ -45,7 +45,7 @@ def server_thread(server, q, buffer_size, timeout_seconds):
 			client, client_from = server.accept()		# BLOCKING FUNCTION!!!
 			client.settimeout(timeout_seconds)
 			thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size))
-			q.put([json.dumps({'event' : 'newclient', 'client_from' : client_from})])
+			q.put([json.dumps({'event' : 'client_connect', 'client_from' : client_from})])
 			thread.daemon = True
 			thread.start()
 	except KeyboardInterrupt:
@@ -71,14 +71,14 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds):
 				item = q.get()
 				if type(item) is list and type(item[0]) is str:
 					data = json.loads(item[0])
-					if data['event'] and data['event'] == 'newclient':
+					if data['event'] and data['event'] == 'client_connect':
 						connected_clients += 1
 						print('{}: Connected.'.format(data['client_from'][0]))
 					elif data['event'] and data['event'] == 'receive_data':
 						print(safe_string('{} -> {}'.format(data['client_from'][0], data['data'])))
 					elif data['event'] and data['event'] == 'send_data':
 						print(safe_string('{} <- {}'.format(data['client_from'][0], data['data'])))
-					elif data['event'] and data['event'] == 'lostclient':
+					elif data['event'] and data['event'] == 'client_disconnect':
 						connected_clients -= 1
 						print('{}: Disconnected.'.format(data['client_from'][0]))
 			time.sleep(0.02)	# 50 times per second.
