@@ -40,7 +40,7 @@ command_dispatch = {
 }
 
 def safe_string(dangerous_string):
-	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033', '[ESC]')
+	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033[', '[CSI]').replace('\033', '[ESC]')
 
 def client_thread(client, q, buffer_size):
 	client_from = client.getpeername()
