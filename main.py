@@ -130,16 +130,19 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds):	# Server h
 				item = q.get()					# Get one item at a time.
 				if type(item) is list and type(item[0]) is str:	# Probably a JSON string.
 					data = json.loads(item[0])
-					if data['event'] and data['event'] == 'client_connect':
-						connected_clients += 1		# Track number of connected clients.
-						print('{}: Connected.'.format(data['client_from'][0]))
-					elif data['event'] and data['event'] == 'receive_data':
-						print(safe_string('{} -> {}'.format(data['client_from'][0], data['data'])))
-					elif data['event'] and data['event'] == 'send_data':
-						print(safe_string('{} <- {}'.format(data['client_from'][0], data['data'])))
-					elif data['event'] and data['event'] == 'client_disconnect':
-						connected_clients -= 1		# Track number of connected clients.
-						print('{}: Disconnected.'.format(data['client_from'][0]))
+					try:
+						if data['event'] == 'client_connect':
+							connected_clients += 1		# Track number of connected clients.
+							print('{}: Connected.'.format(data['client_from'][0]))
+						elif data['event'] == 'receive_data':
+							print(safe_string('{} -> {}'.format(data['client_from'][0], data['data'])))
+						elif data['event'] == 'send_data':
+							print(safe_string('{} <- {}'.format(data['client_from'][0], data['data'])))
+						elif data['event'] == 'client_disconnect':
+							connected_clients -= 1		# Track number of connected clients.
+							print('{}: Disconnected.'.format(data['client_from'][0]))
+					except KeyError:
+						pass
 			time.sleep(0.02)	# Check the queue 50 times per second.
 	finally:
 		server.shutdown(socket.SHUT_RDWR)	# Properly shutdown the server.
