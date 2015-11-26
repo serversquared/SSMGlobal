@@ -66,44 +66,35 @@ command_dispatch = {
 def search_queue(q, key):	# Return one matched item from the queue, put the rest back.
 	mismatched = []		# List of non-matching items.
 	matched = None		# Variable to store a matched item.
-	try:
-		while not q.empty():
-			item = q.get()
-			if type(item) is list and type(item[0]) is str:
-				data = json.loads(item[0])
-				try:
-					if key in data:
-						matched = data
-						break
-					else:
-						mismatched.append(item)
-				except KeyError:	# Now unnecessary?
+	while not q.empty():
+		item = q.get()
+		if type(item) is list and type(item[0]) is str:
+			data = json.loads(item[0])
+			try:
+				if key in data:
+					matched = data
+					break
+				else:
 					mismatched.append(item)
-		for i in range(len(mismatched)):
-			q.put(mismatched[i])
-		return matched
-	except KeyboardInterrupt:
-		pass
+			except KeyError:	# Now unnecessary?
+				mismatched.append(item)
+	for i in range(len(mismatched)):
+		q.put(mismatched[i])
+	return matched
 
 def replace_queue_item(q, key, value, server_delay):
 	data = search_queue(q, key)
-	try:
-		while not type(data) is dict:
-			time.sleep(server_delay)
-			data = search_queue(q, key)
-	except KeyboardInterrupt:
-		pass
+	while not type(data) is dict:
+		time.sleep(server_delay)
+		data = search_queue(q, key)
 	data[key] = value
 	q.put([json.dumps(data)])
 
 def get_client_tracker(q, server_delay, peer_name=None):
 	data = search_queue(q, 'connected_clients')
-	try:
-		while not type(data) is dict:
-			time.sleep(server_delay)
-			data = search_queue(q, 'connected_clients')
-	except KeyboardInterrupt:
-		pass
+	while not type(data) is dict:
+		time.sleep(server_delay)
+		data = search_queue(q, 'connected_clients')
 	q.put([json.dumps(data)])
 	if not peer_name:
 		return data['connected_clients']
@@ -114,23 +105,20 @@ def get_client_tracker(q, server_delay, peer_name=None):
 			return 0
 
 def update_tracked_client(q, peer_name, server_delay, remove=False):
-	try:
-		data = None
-		while not type(data) is dict:
-			time.sleep(server_delay)
-			data = search_queue(q, 'connected_clients')
-		if not peer_name[0] in data:
-			data[peer_name[0]] = 1
-		elif not remove:
-			data[peer_name[0]] += 1
-		elif remove:
-			if data[peer_name[0]] <= 1:
-				del data[peer_name[0]]
-			else:
-				data[peer_name[0]] -= 1
-		q.put([json.dumps(data)])
-	except KeyboardInterrupt:
-		pass
+	data = None
+	while not type(data) is dict:
+		time.sleep(server_delay)
+		data = search_queue(q, 'connected_clients')
+	if not peer_name[0] in data:
+		data[peer_name[0]] = 1
+	elif not remove:
+		data[peer_name[0]] += 1
+	elif remove:
+		if data[peer_name[0]] <= 1:
+			del data[peer_name[0]]
+		else:
+			data[peer_name[0]] -= 1
+	q.put([json.dumps(data)])
 
 def safe_string(dangerous_string):		# Replace escape sequences.
 	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033[', '[CSI]').replace('\033', '[ESC]')
@@ -236,8 +224,6 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients
 					print('{}: Disconnected ({}/{}).'.format(data['client_from'][0], connected_clients, max_clients, max_clients_per_ip))
 			replace_queue_item(q, 'connected_clients', connected_clients, server_delay)
 			time.sleep(server_delay)	# Check the queue based on server delay.
-	except KeyboardInterrupt:
-		pass
 	finally:
 		server.shutdown(socket.SHUT_RDWR)	# Properly shutdown the server.
 		server.close()				# Close the server object.
