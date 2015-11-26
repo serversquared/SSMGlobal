@@ -31,7 +31,8 @@ default_bound_ip = ''		# IP to bind to (or blank string for all).
 default_bound_port = 53450	# Port to bind to (or 0 for random).
 default_buffer_size = 1024	# Packet buffer size (power of 2).
 default_timeout = 10		# Client timeout in seconds (or 0 to block).
-default_max_clients = 16	# Total number of clients allowed.
+default_max_clients = 32	# Total number of clients allowed.
+default_max_clients_per_ip = 4	# Number of clients allowed per IP address.
 
 # Command functions.
 def cmd_quit(*args, **kwargs):			# Close client connection.
@@ -64,35 +65,71 @@ command_dispatch = {
 def search_queue(q, key):	# Return one matched item from the queue, put the rest back.
 	mismatched = []		# List of non-matching items.
 	matched = None		# Variable to store a matched item.
-	while not q.empty():
-		item = q.get()
-		if type(item) is list and type(item[0]) is str:
-			data = json.loads(item[0])
-			try:
-				if key in data:
-					matched = data
-					break
-				else:
+	try:
+		while not q.empty():
+			item = q.get()
+			if type(item) is list and type(item[0]) is str:
+				data = json.loads(item[0])
+				try:
+					if key in data:
+						matched = data
+						break
+					else:
+						mismatched.append(item)
+				except KeyError:	# Now unnecessary?
 					mismatched.append(item)
-			except KeyError:	# Now unnecessary?
-				mismatched.append(item)
-	for i in range(len(mismatched)):
-		q.put(mismatched[i])
-	return matched
+		for i in range(len(mismatched)):
+			q.put(mismatched[i])
+		return matched
+	except KeyboardInterrupt:
+		pass
 
 def replace_queue_item(q, key, value):
 	data = search_queue(q, key)
-	if not data:
-		return False
+	try:
+		while not type(data) is dict:
+			time.sleep(0.02)
+			data = search_queue(q, key)
+	except KeyboardInterrupt:
+		pass
 	data[key] = value
 	q.put([json.dumps(data)])
 
-def get_client_tracker(q):
+def get_client_tracker(q, peer_name=None):
 	data = search_queue(q, 'connected_clients')
-	if not data:
-		return False
+	try:
+		while not type(data) is dict:
+			time.sleep(0.02)
+			data = search_queue(q, 'connected_clients')
+	except KeyboardInterrupt:
+		pass
 	q.put([json.dumps(data)])
-	return data['connected_clients']
+	if not peer_name:
+		return data['connected_clients']
+	else:
+		if peer_name[0] in data:
+			return data[peer_name[0]]
+		else:
+			return 0
+
+def update_tracked_client(q, peer_name, remove=False):
+	try:
+		data = None
+		while not type(data) is dict:
+			time.sleep(0.02)
+			data = search_queue(q, 'connected_clients')
+		if not peer_name[0] in data:
+			data[peer_name[0]] = 1
+		elif not remove:
+			data[peer_name[0]] += 1
+		elif remove:
+			if data[peer_name[0]] <= 1:
+				del data[peer_name[0]]
+			else:
+				data[peer_name[0]] -= 1
+		q.put([json.dumps(data)])
+	except KeyboardInterrupt:
+		pass
 
 def safe_string(dangerous_string):		# Replace escape sequences.
 	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033[', '[CSI]').replace('\033', '[ESC]')
@@ -135,17 +172,21 @@ def client_thread(client, q, buffer_size):	# Client thread (one per connected cl
 		client.close()			# Close the client object.
 		q.put([json.dumps({'event' : 'client_disconnect', 'client_from' : client_from})])		# Let the server handler process know that we lost a client.
 
-def server_thread(server, q, buffer_size, timeout_seconds, max_clients):	# Server thread (handles client connecting).
+def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clients_per_ip):	# Server thread (handles client connecting).
 	try:
 		while True:
 			connected_clients = get_client_tracker(q)
 			if type(connected_clients) is int and connected_clients < max_clients:
 				client, client_from = server.accept()		# Wait for a client to connect (BLOCKING FUNCTION).
-				client.settimeout(timeout_seconds)		# Set the client's timeout.
-				thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size))	# Set up a new child process for the client thread.
-				q.put([json.dumps({'event' : 'client_connect', 'client_from' : client_from})])		# Let the server handler process know that we gained a client.
-				thread.daemon = True				# Daemonize the client thread.
-				thread.start()					# Start the client thread.
+				if get_client_tracker(q, client_from) < max_clients_per_ip:
+					client.settimeout(timeout_seconds)		# Set the client's timeout.
+					thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size))	# Set up a new child process for the client thread.
+					q.put([json.dumps({'event' : 'client_connect', 'client_from' : client_from})])		# Let the server handler process know that we gained a client.
+					thread.daemon = True				# Daemonize the client thread.
+					thread.start()					# Start the client thread.
+				else:
+					client.shutdown(socket.SHUT_RDWR)		# Immediately terminate the connection.
+					client.close()
 				time.sleep(0.1)
 			else:		# The server is full (or there was an error loading the queue).
 				try:
@@ -160,7 +201,7 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients):	# Serve
 	except KeyboardInterrupt:
 		pass
 
-def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients):	# Server handler thread (sets up the server and handles logs).
+def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip):	# Server handler thread (sets up the server and handles logs).
 	try:
 		q = multiprocessing.Queue()
 		connected_clients = 0
@@ -174,7 +215,7 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients
 		server.listen(1)						# Allow up to 1 queued connection.
 		server_ip, server_port = server.getsockname()			# Get our own bound IP and port (useful if port was 0).
 		print('Server started on {}:{}'.format(server_ip, server_port))
-		thread = multiprocessing.Process(target=server_thread, args=(server, q, buffer_size, timeout_seconds, max_clients))	# Set up a child process for the server thread.
+		thread = multiprocessing.Process(target=server_thread, args=(server, q, buffer_size, timeout_seconds, max_clients, max_clients_per_ip))	# Set up a child process for the server thread.
 		thread.daemon = False						# Do not daemonize the server thread.
 		thread.start()							# Start the server thread.
 		while True:
@@ -182,6 +223,7 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients
 			if data:
 				if data['event'] == 'client_connect':
 					connected_clients += 1		# Track number of connected clients.
+					update_tracked_client(q, data['client_from'], False)
 					print('{}: Connected ({}/{}).'.format(data['client_from'][0], connected_clients, max_clients))
 				elif data['event'] == 'receive_data':
 					print(safe_string('{} -> {}'.format(data['client_from'][0], data['data'])))
@@ -189,9 +231,12 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients
 					print(safe_string('{} <- {}'.format(data['client_from'][0], data['data'])))
 				elif data['event'] == 'client_disconnect':
 					connected_clients -= 1		# Track number of connected clients.
-					print('{}: Disconnected ({}/{}).'.format(data['client_from'][0], connected_clients, max_clients))
+					update_tracked_client(q, data['client_from'], True)
+					print('{}: Disconnected ({}/{}).'.format(data['client_from'][0], connected_clients, max_clients, max_clients_per_ip))
 			replace_queue_item(q, 'connected_clients', connected_clients)
 			time.sleep(0.02)	# Check the queue 50 times per second.
+	except KeyboardInterrupt:
+		pass
 	finally:
 		server.shutdown(socket.SHUT_RDWR)	# Properly shutdown the server.
 		server.close()				# Close the server object.
@@ -204,8 +249,9 @@ def main():
 	parser.add_argument('-b', '--buffer', type=int, metavar='BYTES', dest='buffer_size', help='size of network buffer in bytes', action='store', default=default_buffer_size)
 	parser.add_argument('-t', '--timeout', type=int, metavar='SECONDS', dest='timeout_seconds', help='timeout in seconds or 0 to block', action='store', default=default_timeout)
 	parser.add_argument('-m', '--max-clients', type=int, metavar='CLIENTS', dest='max_clients', help='total number of clients allowed', action='store', default=default_max_clients)
+	parser.add_argument('-c', '--clients-per-ip', type=int, metavar='CLIENTS', dest='max_clients_per_ip', help='max number of clients allowed per address', action='store', default=default_max_clients_per_ip)
 	settings = vars(parser.parse_args())
-	server_setup(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'])
+	server_setup(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'])
 
 if __name__ == '__main__':		# Prevent child processes from running this.
 	try:
