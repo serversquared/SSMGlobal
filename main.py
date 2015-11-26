@@ -190,7 +190,7 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 	except KeyboardInterrupt:
 		pass
 
-def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay):	# Server handler thread (sets up the server and handles logs).
+def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay):	# Server handler thread (sets up the server and handles logs).
 	try:
 		q = multiprocessing.Queue()
 		connected_clients = 0
@@ -239,7 +239,7 @@ def main():
 	parser.add_argument('-c', '--clients-per-ip', type=int, metavar='CLIENTS', dest='max_clients_per_ip', help='max number of clients allowed per address', action='store', default=default_max_clients_per_ip)
 	parser.add_argument('-D', '--server-delay', type=float, metavar='SECONDS', dest='server_delay', help='time in seconds to delay verious server operations', action='store', default=default_server_delay)
 	settings = vars(parser.parse_args())
-	server_setup(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'], settings['server_delay'])
+	server_handler(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'], settings['server_delay'])
 
 if __name__ == '__main__':		# Prevent child processes from running this.
 	try:
