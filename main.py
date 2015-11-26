@@ -60,6 +60,23 @@ command_dispatch = {
 	'hw' : cmd_hw
 }
 
+def search_queue(q, key):
+	mismatched = []
+	matched = None
+	while not q.empty():
+		item = q.get()
+		if type(item) is list and type(item[0]) is str:
+			data = json.loads(item[0])
+			try:
+				if data[key]:
+					matched = data
+					break
+			except KeyError:
+				mismatched.append(item)
+	for i in range(len(mismatched)):
+		q.put(mismatched[i])
+	return matched
+
 def safe_string(dangerous_string):		# Replace escape sequences.
 	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033[', '[CSI]').replace('\033', '[ESC]')
 
@@ -126,23 +143,18 @@ def server_setup(bound_ip, bound_port, buffer_size, timeout_seconds):	# Server h
 		thread.daemon = False						# Do not daemonize the server thread.
 		thread.start()							# Start the server thread.
 		while True:
-			while not q.empty():
-				item = q.get()					# Get one item at a time.
-				if type(item) is list and type(item[0]) is str:	# Probably a JSON string.
-					data = json.loads(item[0])
-					try:
-						if data['event'] == 'client_connect':
-							connected_clients += 1		# Track number of connected clients.
-							print('{}: Connected.'.format(data['client_from'][0]))
-						elif data['event'] == 'receive_data':
-							print(safe_string('{} -> {}'.format(data['client_from'][0], data['data'])))
-						elif data['event'] == 'send_data':
-							print(safe_string('{} <- {}'.format(data['client_from'][0], data['data'])))
-						elif data['event'] == 'client_disconnect':
-							connected_clients -= 1		# Track number of connected clients.
-							print('{}: Disconnected.'.format(data['client_from'][0]))
-					except KeyError:
-						pass
+			data = search_queue(q, 'event')
+			if data:
+				if data['event'] == 'client_connect':
+					connected_clients += 1		# Track number of connected clients.
+					print('{}: Connected.'.format(data['client_from'][0]))
+				elif data['event'] == 'receive_data':
+					print(safe_string('{} -> {}'.format(data['client_from'][0], data['data'])))
+				elif data['event'] == 'send_data':
+					print(safe_string('{} <- {}'.format(data['client_from'][0], data['data'])))
+				elif data['event'] == 'client_disconnect':
+					connected_clients -= 1		# Track number of connected clients.
+					print('{}: Disconnected.'.format(data['client_from'][0]))
 			time.sleep(0.02)	# Check the queue 50 times per second.
 	finally:
 		server.shutdown(socket.SHUT_RDWR)	# Properly shutdown the server.
