@@ -34,13 +34,18 @@ def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one
 		while True:
 			if client_mode == 'HUMAN':
 				client.send('> '.encode('ascii'))
+
 			data = client.recv(buffer_size)		# Get client input (BLOCKING FUNCTION).
 			data = data.decode('ascii')
 			if data == '':				# Data is blank usually when a client's connection is terminated.
 				break				# End the loop to close the client object.
 			q.put([json.dumps({'event' : 'receive_data', 'data' : data, 'client_from' : client_from})])		# Let the server handler process know what the client sent us.
+
 			try:					# Try to run a command based off of user input.
 				command_args = data[:-2].split()
+				if not client_mode and command_args[0].upper() != 'MODE':
+					break
+
 				result = cmd.command_dispatch[command_args[0]](client, q, client_mode, extensions, *command_args[1:])
 				if type(result) is dict:
 					if 'client_mode' in result:
