@@ -47,6 +47,9 @@ libs = [
 	safe_string,
 	network_core,
 ]
+# Extensions (to be checked; primarily extends commands).
+extensions = (
+)
 
 core = {
 	'version': '1.0.0',
@@ -67,7 +70,7 @@ def lib_check(libs, core):
 def save_server():
 	pass
 
-def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, auto_save_delay):	# Server handler thread (sets up the server and handles logs).
+def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, auto_save_delay, extensions):	# Server handler thread (sets up the server and handles logs).
 	try:
 		q = multiprocessing.Queue()
 		connected_clients = 0
@@ -83,7 +86,7 @@ def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clien
 		server.listen(1)						# Allow up to 1 queued connection.
 		server_ip, server_port = server.getsockname()			# Get our own bound IP and port (useful if port was 0).
 		print('Server started on {}:{}'.format(server_ip, server_port))
-		thread = multiprocessing.Process(target=network_core.server_thread, args=(server, q, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, queue_utils, cmd))	# Set up a child process for the server thread.
+		thread = multiprocessing.Process(target=network_core.server_thread, args=(server, q, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, queue_utils, cmd, extensions))	# Set up a child process for the server thread.
 		thread.daemon = False						# Do not daemonize the server thread.
 		thread.start()							# Start the server thread.
 		while True:
@@ -123,6 +126,15 @@ def main():
 		for lib in incompatible:
 			print('\tName: {}\tAPI: {}'.format(lib.name, lib.uses_api_version))
 		return
+	mismatched, incompatible = lib_check(extensions, core)
+	if len(mismatched) > 0:
+		print('WARN: Mismatched extension API loaded.')
+		for lib in mismatched:
+			print('\tName: {}\tAPI: {}'.format(lib.name, lib.uses_api_version))
+	if len(incompatible) > 0:
+		print('WARN: Incompatible extension loaded!')
+		for lib in incompatible:
+			print('\tName: {}\tAPI: {}'.format(lib.name, lib.uses_api_version))
 	parser = argparse.ArgumentParser(description='(server)^2 Modification Global Backend')
 	parser.add_argument('-a', '--address', type=str, metavar='IP', dest='bound_ip', help='address to bind to', action='store', default=default_bound_ip)
 	parser.add_argument('-p', '--port', type=int, metavar='PORT', dest='bound_port', help='port to bind to', action='store', default=default_bound_port)
@@ -133,7 +145,7 @@ def main():
 	parser.add_argument('-D', '--server-delay', type=float, metavar='SECONDS', dest='server_delay', help='time in seconds to delay verious server operations', action='store', default=default_server_delay)
 	parser.add_argument('-A', '--auto-save', type=int, metavar='SECONDS', dest='auto_save_delay', help='how often to auto-save in seconds', action='store', default=default_auto_save_delay)
 	settings = vars(parser.parse_args())
-	server_handler(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'], settings['server_delay'], settings['auto_save_delay'])
+	server_handler(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'], settings['server_delay'], settings['auto_save_delay'], extensions)
 
 if __name__ == '__main__':		# Prevent child processes from running this.
 	try:
