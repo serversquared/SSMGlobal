@@ -46,7 +46,7 @@ def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one
 				if not client_mode and command_args[0].upper() != 'MODE':
 					break
 
-				result = cmd.command_dispatch[command_args[0]](client, q, client_mode, extensions, *command_args[1:])
+				result = cmd.command_dispatch[command_args[0].upper()](client, q, client_mode, extensions, *command_args[1:])
 				if type(result) is dict:
 					if 'client_mode' in result:
 						client_mode = result['client_mode']

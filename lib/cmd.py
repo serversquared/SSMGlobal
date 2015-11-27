@@ -25,7 +25,7 @@ uses_api_version = '1.0.0'
 uses_api_base = 1
 
 # Command functions.
-def cmd_quit(*args, **kwargs):			# Close client connection.
+def cmd_QUIT(*args, **kwargs):			# Close client connection.
 	return {'break': True}
 
 def cmd_MODE(*args, **kwargs):			# Change client mode.
@@ -37,7 +37,7 @@ def cmd_MODE(*args, **kwargs):			# Change client mode.
 		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode change: {})'.format(args[4].upper()), 'client_from' : client_from})])
 		return {'client_mode': args[4].upper()}
 
-def cmd_help(*args, **kwargs):			# Return all commands.
+def cmd_HELP(*args, **kwargs):			# Return all commands.
 	client_from = args[0].getpeername()
 	data = 'Available commands:\r\n'
 	args[0].send(data.encode('ascii'))
@@ -46,7 +46,7 @@ def cmd_help(*args, **kwargs):			# Return all commands.
 		args[0].send(data.encode('ascii'))
 	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Help message)', 'client_from' : client_from})])
 
-def cmd_hw(*args, **kwargs):			# Return "Hello, world!"
+def cmd_HW(*args, **kwargs):			# Return "Hello, world!"
 	client_from = args[0].getpeername()
 	iters = (len(args) > 4 and args[4]) or 1
 	for i in range(int(iters)):
@@ -56,8 +56,8 @@ def cmd_hw(*args, **kwargs):			# Return "Hello, world!"
 
 # Dictionary of command functions.
 command_dispatch = {
-	'quit' : cmd_quit,
+	'QUIT' : cmd_QUIT,
 	'MODE' : cmd_MODE,
-	'help' : cmd_help,
-	'hw' : cmd_hw
+	'HELP' : cmd_HELP,
+	'HW' : cmd_HW,
 }
