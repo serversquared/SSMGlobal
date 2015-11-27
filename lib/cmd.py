@@ -40,13 +40,14 @@ def cmd_MODE(*args, **kwargs):			# Change client mode.
 		return {'client_mode': args[4].upper()}
 
 def cmd_HELP(*args, **kwargs):			# Return all commands.
-	client_from = args[0].getpeername()
-	data = 'Available commands:\r\n'
-	args[0].send(data.encode('ascii'))
-	for command_name in command_dispatch:
-		data = '\t{}\r\n'.format(command_name)
+	if args[2] == 'HUMAN':
+		client_from = args[0].getpeername()
+		data = 'Available commands:\r\n'
 		args[0].send(data.encode('ascii'))
-	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Help message)', 'client_from' : client_from})])
+		for command_name in command_dispatch:
+			data = '\t{}\r\n'.format(command_name)
+			args[0].send(data.encode('ascii'))
+		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Help message)', 'client_from' : client_from})])
 
 def cmd_HW(*args, **kwargs):			# Return "Hello, world!"
 	client_from = args[0].getpeername()
