@@ -34,6 +34,8 @@ def cmd_MODE(*args, **kwargs):			# Change client mode.
 	if args[4].upper() in valid_modes:
 		if args[4].upper() == 'HUMAN':
 			args[0].send('Welcome to serversquared Modification Global Backend.\r\n'.encode('ascii'))
+		else:
+			args[0].send('OK\r\n'.encode('ascii'))
 		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode change: {})'.format(args[4].upper()), 'client_from' : client_from})])
 		return {'client_mode': args[4].upper()}
 
