@@ -29,9 +29,11 @@ uses_api_base = 1
 
 def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one per connected client).
 	client_from = client.getpeername()
+	client_mode = None
 	try:
 		while True:
-			client.send('> '.encode('ascii'))	# Encourage user input.
+			if client_mode == 'HUMAN':
+				client.send('> '.encode('ascii'))
 			data = client.recv(buffer_size)		# Get client input (BLOCKING FUNCTION).
 			data = data.decode('ascii')
 			if data == '':				# Data is blank usually when a client's connection is terminated.
@@ -39,9 +41,12 @@ def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one
 			q.put([json.dumps({'event' : 'receive_data', 'data' : data, 'client_from' : client_from})])		# Let the server handler process know what the client sent us.
 			try:					# Try to run a command based off of user input.
 				command_args = data[:-2].split()
-				do_break = cmd.command_dispatch[command_args[0]](client, q, extensions, *command_args[1:])
-				if do_break:			# Terminate the connection if command returns true.
-					break
+				result = cmd.command_dispatch[command_args[0]](client, q, client_mode, extensions, *command_args[1:])
+				if type(result) is dict:
+					if 'client_mode' in result:
+						client_mode = result['client_mode']
+					if 'break' in result and result['break']:		# Terminate the connection if command returns true.
+						break
 			except KeyError:			# Not a valid command.
 				client.send('< {}'.format(data).encode('ascii'))						# Echo back what the client sent us.
 				q.put([json.dumps({'event' : 'send_data', 'data' : data, 'client_from' : client_from})])	# Let the server handler process know what we sent.

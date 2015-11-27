@@ -26,7 +26,16 @@ uses_api_base = 1
 
 # Command functions.
 def cmd_quit(*args, **kwargs):			# Close client connection.
-	return True
+	return {'break': True}
+
+def cmd_MODE(*args, **kwargs):			# Change client mode.
+	client_from = args[0].getpeername()
+	valid_modes = ('SERVER', 'CLIENT', 'HUMAN')
+	if args[4].upper() in valid_modes:
+		if args[4].upper() == 'HUMAN':
+			args[0].send('Welcome to serversquared Modification Global Backend.\r\n'.encode('ascii'))
+		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode change: {})'.format(args[4].upper()), 'client_from' : client_from})])
+		return {'client_mode': args[4].upper()}
 
 def cmd_help(*args, **kwargs):			# Return all commands.
 	client_from = args[0].getpeername()
@@ -39,7 +48,7 @@ def cmd_help(*args, **kwargs):			# Return all commands.
 
 def cmd_hw(*args, **kwargs):			# Return "Hello, world!"
 	client_from = args[0].getpeername()
-	iters = (len(args) > 3 and args[3]) or 1
+	iters = (len(args) > 4 and args[4]) or 1
 	for i in range(int(iters)):
 		args[0].send('Hello, world!\r\n'.encode('ascii'))
 	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Hello world message)', 'client_from' : client_from})])
@@ -48,6 +57,7 @@ def cmd_hw(*args, **kwargs):			# Return "Hello, world!"
 # Dictionary of command functions.
 command_dispatch = {
 	'quit' : cmd_quit,
+	'MODE' : cmd_MODE,
 	'help' : cmd_help,
 	'hw' : cmd_hw
 }
