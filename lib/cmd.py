@@ -31,13 +31,20 @@ def cmd_QUIT(*args, **kwargs):			# Close client connection.
 def cmd_MODE(*args, **kwargs):			# Change client mode.
 	client_from = args[0].getpeername()
 	valid_modes = ('SERVER', 'CLIENT', 'HUMAN')
-	if args[4].upper() in valid_modes:
+	if len(args) > 4 and args[4].upper() in valid_modes:
 		if args[4].upper() == 'HUMAN':
 			args[0].send('Welcome to serversquared Modification Global Backend.\r\n'.encode('ascii'))
 		else:
 			args[0].send('OK\r\n'.encode('ascii'))
 		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode change: {})'.format(args[4].upper()), 'client_from' : client_from})])
 		return {'client_mode': args[4].upper()}
+	elif len(args) > 4 and args[4].upper() == 'LIST':
+		args[0].send('{}\r\n'.format(' '.join(valid_modes)).encode('ascii'))
+		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode list)'.format(args[4].upper()), 'client_from' : client_from})])
+	else:
+		args[0].send('ERROR INVALID MODE {}\r\n'.format((len(args) > 4  and args[4].upper()) or '').encode('ascii'))
+		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Error: Invalid mode)', 'client_from' : client_from})])
+		return {'break': True}
 
 def cmd_HELP(*args, **kwargs):			# Return all commands.
 	if args[2] == 'HUMAN':
