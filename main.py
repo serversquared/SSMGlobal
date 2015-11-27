@@ -34,6 +34,7 @@ default_timeout = 10		# Client timeout in seconds (or 0 to block).
 default_max_clients = 32	# Total number of clients allowed.
 default_max_clients_per_ip = 4	# Number of clients allowed per IP address.
 default_server_delay = 0.02	# Time in seconds to delay various server operations.
+default_auto_save_delay = 300	# How often in seconds to auto-save (or 0 for never).
 
 # Command functions.
 def cmd_quit(*args, **kwargs):			# Close client connection.
@@ -120,6 +121,9 @@ def update_tracked_client(q, peer_name, server_delay, remove=False):
 			data[peer_name[0]] -= 1
 	q.put([json.dumps(data)])
 
+def save_server():
+	pass
+
 def safe_string(dangerous_string):		# Replace escape sequences.
 	return dangerous_string.replace('\n', '\\n').replace('\r', '\\r').replace('\033[', '[CSI]').replace('\033', '[ESC]')
 
@@ -190,11 +194,13 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 	except KeyboardInterrupt:
 		pass
 
-def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay):	# Server handler thread (sets up the server and handles logs).
+def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, auto_save_delay):	# Server handler thread (sets up the server and handles logs).
 	try:
 		q = multiprocessing.Queue()
 		connected_clients = 0
 		q.put([json.dumps({'connected_clients' : connected_clients})])
+		last_auto_save = time.time()
+		auto_save = auto_save_delay > 0
 		server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)	# Create a server object.
 		server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)	# We want to be able to reuse an old address/port.
 		server.settimeout(None)
@@ -208,6 +214,10 @@ def server_handler(bound_ip, bound_port, buffer_size, timeout_seconds, max_clien
 		thread.daemon = False						# Do not daemonize the server thread.
 		thread.start()							# Start the server thread.
 		while True:
+			if auto_save and int(time.time() - last_auto_save) >= auto_save_delay:
+				save_server()
+				last_auto_save = time.time()
+
 			data = search_queue(q, 'event')
 			if data:
 				if data['event'] == 'client_connect':
@@ -238,8 +248,9 @@ def main():
 	parser.add_argument('-m', '--max-clients', type=int, metavar='CLIENTS', dest='max_clients', help='total number of clients allowed', action='store', default=default_max_clients)
 	parser.add_argument('-c', '--clients-per-ip', type=int, metavar='CLIENTS', dest='max_clients_per_ip', help='max number of clients allowed per address', action='store', default=default_max_clients_per_ip)
 	parser.add_argument('-D', '--server-delay', type=float, metavar='SECONDS', dest='server_delay', help='time in seconds to delay verious server operations', action='store', default=default_server_delay)
+	parser.add_argument('-A', '--auto-save', type=int, metavar='SECONDS', dest='auto_save_delay', help='how often to auto-save in seconds', action='store', default=default_auto_save_delay)
 	settings = vars(parser.parse_args())
-	server_handler(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'], settings['server_delay'])
+	server_handler(settings['bound_ip'], settings['bound_port'], settings['buffer_size'], settings['timeout_seconds'], settings['max_clients'], settings['max_clients_per_ip'], settings['server_delay'], settings['auto_save_delay'])
 
 if __name__ == '__main__':		# Prevent child processes from running this.
 	try:
