@@ -60,6 +60,8 @@ def cmd_HW(*args, **kwargs):			# Return "Hello, world!"
 	client_from = args[0].getpeername()
 	iters = (len(args) > 4 and args[4]) or 1
 	for i in range(int(iters)):
+		if i >= 64:
+			break
 		args[0].send('Hello, world!\r\n'.encode('ascii'))
 	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Hello world message)', 'client_from' : client_from})])
 # End command functions.
