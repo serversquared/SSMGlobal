@@ -47,6 +47,7 @@ def write_save(global_dict, save_file, human_readable=False, pretty=True):
 					human_string += '\n'
 					for _ in range(indent_level):	human_string += '\t'
 					human_string += char
+					if indent_level == 0:	human_string += '\n'	# Add newline to end of file.
 				elif char == ',':				# Add newline.
 					human_string += char
 					human_string += '\n'
