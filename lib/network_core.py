@@ -27,7 +27,7 @@ version = '1.0.0'
 uses_api_version = '1.0.0'
 uses_api_base = 1
 
-def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one per connected client).
+def client_thread(client, q, buffer_size, cmd, libs):	# Client thread (one per connected client).
 	client_from = client.getpeername()
 	client_mode = None
 	try:
@@ -46,7 +46,7 @@ def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one
 				if not client_mode and command_args[0].upper() != 'MODE':
 					break
 
-				result = cmd.command_dispatch[command_args[0].upper()](client, q, client_mode, extensions, *command_args[1:])
+				result = cmd.command_dispatch[command_args[0].upper()](client, q, client_mode, libs, *command_args[1:])
 				if type(result) is dict:
 					if 'client_mode' in result:
 						client_mode = result['client_mode']
@@ -75,7 +75,7 @@ def client_thread(client, q, buffer_size, cmd, extensions):	# Client thread (one
 		client.close()			# Close the client object.
 		q.put([json.dumps({'event' : 'client_disconnect', 'client_from' : client_from})])		# Let the server handler process know that we lost a client.
 
-def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, queue_utils, cmd, extensions):	# Server thread (handles client connecting).
+def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clients_per_ip, server_delay, queue_utils, cmd, libs):	# Server thread (handles client connecting).
 	try:
 		while True:
 			connected_clients = queue_utils.get_client_tracker(q, server_delay)
@@ -84,7 +84,7 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 				if queue_utils.get_client_tracker(q, server_delay, client_from) < max_clients_per_ip:
 					client.settimeout(timeout_seconds)		# Set the client's timeout.
 					client.send('OK\r\n'.encode('ascii'))
-					thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size, cmd, extensions))	# Set up a new child process for the client thread.
+					thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size, cmd, libs))	# Set up a new child process for the client thread.
 					q.put([json.dumps({'event' : 'client_connect', 'client_from' : client_from})])		# Let the server handler process know that we gained a client.
 					thread.daemon = True				# Daemonize the client thread.
 					thread.start()					# Start the client thread.
