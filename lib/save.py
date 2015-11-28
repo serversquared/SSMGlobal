@@ -28,30 +28,30 @@ import pickle
 
 def write_save(global_dict, save_file, human_readable=False, pretty=True):
 	global_dict['last_save'] = int(time())
-	if not human_readable:
+	if not human_readable:		# Save as binary data. Easier and less likely to cause errors.
 		with open(save_file, 'wb') as f:
 			pickle.dump(global_dict, f)
-	else:
-		if pretty:
+	else:				# Save as human-readable data.
+		if pretty:		# Add tabs and newlines. Slower, but easier to view/edit.
 			human_string = ''
 			indent_level = 0
 			last_char = None
 			for char in str(global_dict):
-				if char == '{' or char == '[' or char == '(':
+				if char == '{' or char == '[' or char == '(':	# Beginning of data structure.
 					human_string += char
 					indent_level += 1
 					human_string += '\n'
 					for _ in range(indent_level):	human_string += '\t'
-				elif char == '}' or char == ']' or char == ')':
+				elif char == '}' or char == ']' or char == ')':	# End of data structure.
 					indent_level -= 1
 					human_string += '\n'
 					for _ in range(indent_level):	human_string += '\t'
 					human_string += char
-				elif char == ',':
+				elif char == ',':				# Add newline.
 					human_string += char
 					human_string += '\n'
 					for _ in range(indent_level):	human_string += '\t'
-				elif char == ' ' and last_char == ',':
+				elif char == ' ' and last_char == ',':		# We're on a new line; do not add space.
 					pass
 				else:
 					human_string += char
@@ -64,13 +64,13 @@ def write_save(global_dict, save_file, human_readable=False, pretty=True):
 
 def load_save(save_file, human_readable=False):
 	global_dict = {}
-	if not isfile(save_file):
+	if not isfile(save_file):	# Create a new save file.
 		write_save(global_dict, save_file, human_readable)
 	else:
-		if not human_readable:
+		if not human_readable:	# Read as binary data. Easier and less likely to cause errors.
 			with open(save_file, 'rb') as f:
 				global_dict = pickle.load(f)
-		else:
+		else:			# Read as a string. May cause problems; potentially a security issue.
 			with open(save_file, 'r') as f:
 				global_dict = eval(f.read())
 	return global_dict
