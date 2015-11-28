@@ -83,11 +83,13 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 				client, client_from = server.accept()		# Wait for a client to connect (BLOCKING FUNCTION).
 				if queue_utils.get_client_tracker(q, server_delay, client_from) < max_clients_per_ip:
 					client.settimeout(timeout_seconds)		# Set the client's timeout.
+					client.send('OK\r\n'.encode('ascii'))
 					thread = multiprocessing.Process(target=client_thread, args=(client, q, buffer_size, cmd, extensions))	# Set up a new child process for the client thread.
 					q.put([json.dumps({'event' : 'client_connect', 'client_from' : client_from})])		# Let the server handler process know that we gained a client.
 					thread.daemon = True				# Daemonize the client thread.
 					thread.start()					# Start the client thread.
 				else:
+					client.send('ERROR TOO MANY CLIENTS\r\n'.encode('ascii'))
 					client.shutdown(SHUT_RDWR)		# Immediately terminate the connection.
 					client.close()
 				time.sleep(0.1)
@@ -95,6 +97,7 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 				try:
 					server.settimeout(0.1)				# Reload the queue 10 times per second.
 					client, client_from = server.accept()
+					client.send('ERROR SERVER FULL\r\n'.encode('ascii'))
 					client.shutdown(SHUT_RDWR)		# Immediately terminate the connection.
 					client.close()
 				except timeout:
