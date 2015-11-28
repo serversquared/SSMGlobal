@@ -41,12 +41,12 @@ import lib.cmd as cmd
 import lib.queue_utils as queue_utils
 import lib.safe_string as safe_string
 import lib.network_core as network_core
-libs = [
+libs = (
 	cmd,
 	queue_utils,
 	safe_string,
 	network_core,
-]
+)
 # Extensions (to be checked; primarily extends commands).
 extensions = (
 )
