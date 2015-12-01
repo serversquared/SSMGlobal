@@ -89,61 +89,6 @@ def client_thread(client, q, buffer_size, cmd, libs):	# Client thread (one per c
 				if 'break' in result and result['break']:	break
 				if 'client_mode' in result:	client_mode = result['client_mode']
 
-			'''
-			if client_mode == 'HUMAN':
-				client.send('> '.encode('ascii'))
-
-			data = client.recv(buffer_size)		# Get client input (BLOCKING FUNCTION).
-			data = data.decode('ascii')
-			if data == '':				# Data is blank usually when a client's connection is terminated.
-				break				# End the loop to close the client object.
-			q.put([json.dumps({'event': 'receive_data', 'data': data, 'client_from': client_from})])		# Let the server handler process know what the client sent us.
-
-			try:					# Try to run a command based off of user input.
-				result = None
-				if client_mode and client_mode != 'HUMAN':
-					try:
-						data = json.loads(data[:-2])
-					except ValueError:
-						client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Bad JSON string.'})).encode('ascii'))
-						q.put([json.dumps({'event': 'send_data', 'data': '(Error: Bad JSON string)', 'client_from': client_from})])
-						break
-					if 'cmd' in data:
-						result = cmd.command_dispatch[data['cmd'].upper()](client, q, client_mode, libs, 'args' in data and data['args'] or ())
-				else:
-					command_args = data[:-2].split()
-					if not client_mode and command_args[0].upper() != 'MODE':
-						break
-
-					result = cmd.command_dispatch[command_args[0].upper()](client, q, client_mode, libs, *command_args[1:])
-				if type(result) is dict:
-					if 'client_mode' in result:
-						client_mode = result['client_mode']
-					if 'break' in result and result['break']:		# Terminate the connection if command returns true.
-						break
-			except KeyError:			# Not a valid command.
-				if client_mode and client_mode != 'HUMAN':
-					client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Command not found.'})).encode('ascii'))
-				else:
-					client.send('Error: Command not found.\r\n'.encode('ascii'))
-				q.put([json.dumps({'event': 'send_data', 'data': '(Error: No command found)', 'client_from': client_from})])		# Let the server handler process know what we sent.
-			except ValueError:			# Probably invalid arguments.
-				if client_mode and client_mode != 'HUMAN':
-					client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Invalid value.'})).encode('ascii'))
-				else:
-					client.send('Error: Invalid value.\r\n')
-				q.put([json.dumps({'event': 'send_data', 'data': '(Error: Invalid value)', 'client_from': client_from})])	# Let the server handler process know what we sent.
-			except BaseException as e:			# Something not so good happened.
-				q.put([json.dumps({'event': 'send_data', 'data': '(Error: Unknown error)', 'client_from': client_from})])	# Let the server handler process know what we sent.
-				try:
-					if client_mode and client_mode != 'HUMAN':
-						client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Unknown error.'})).encode('ascii'))
-					else:
-						client.send('Error: Unknown error.\r\n')
-				except BaseException:
-					pass
-				break				# Terminate the client connection to attempt to preserve the server.
-			'''
 		try:
 			client.shutdown(SHUT_RDWR)	# Properly shuts down the connection.
 		except BaseException:
