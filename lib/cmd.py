@@ -33,36 +33,46 @@ def cmd_MODE(*args, **kwargs):			# Change client mode.
 	valid_modes = ('SERVER', 'CLIENT', 'HUMAN')
 	if len(args) > 4 and args[4].upper() in valid_modes:
 		if args[4].upper() == 'HUMAN':
-			args[0].send('Welcome to serversquared Modification Global Backend.\r\n'.encode('ascii'))
+			args[0].send('Welcome to serversquared Modification Global Backend.\r\n'.encode())
 		else:
-			args[0].send('OK\r\n'.encode('ascii'))
+			args[0].send('{}\r\n'.format(json.dumps({'state': 'OK', 'msg': 'Mode: {}'.format(args[4].upper())})).encode())
 		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode change: {})'.format(args[4].upper()), 'client_from' : client_from})])
 		return {'client_mode': args[4].upper()}
 	elif len(args) > 4 and args[4].upper() == 'LIST':
-		args[0].send('{}\r\n'.format(' '.join(valid_modes)).encode('ascii'))
+		args[0].send('{}\r\n'.format(json.dumps({'state': 'OK', 'msg': ' '.join(valid_modes)})).encode())
 		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Mode list)'.format(args[4].upper()), 'client_from' : client_from})])
 	else:
-		args[0].send('ERROR INVALID MODE {}\r\n'.format((len(args) > 4  and args[4].upper()) or '').encode('ascii'))
-		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Error: Invalid mode)', 'client_from' : client_from})])
+		args[0].send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Invalid mode: {}'.format((len(args) > 4  and args[4].upper()) or '')})).encode())
+		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Error: Invalid mode.)', 'client_from' : client_from})])
 		return {'break': True}
 
 def cmd_HELP(*args, **kwargs):			# Return all commands.
+	client_from = args[0].getpeername()
 	if args[2] == 'HUMAN':
-		client_from = args[0].getpeername()
 		data = 'Available commands:\r\n'
-		args[0].send(data.encode('ascii'))
+		args[0].send(data.encode())
 		for command_name in command_dispatch:
 			data = '\t{}\r\n'.format(command_name)
-			args[0].send(data.encode('ascii'))
-		args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Help message)', 'client_from' : client_from})])
+			args[0].send(data.encode())
+	else:
+		command_list = ' '.join(command_dispatch)
+		args[0].send('{}\r\n'.format(json.dumps({'state': 'OK', 'msg': command_list})).encode())
+	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Command list)', 'client_from' : client_from})])
 
 def cmd_HW(*args, **kwargs):			# Return "Hello, world!"
 	client_from = args[0].getpeername()
 	iters = (len(args) > 4 and args[4]) or 1
-	for i in range(int(iters)):
-		if i >= 64:
-			break
-		args[0].send('Hello, world!\r\n'.encode('ascii'))
+	if args[2] == 'HUMAN':
+		for i in range(int(iters)):
+			if i >= 64:	break
+			args[0].send('Hello, world!\r\n'.encode())
+	else:
+		hw_string = ''
+		for i in range(int(iters)):
+			if i >= 64:	break
+			hw_string += 'Hello, world! '
+		hw_string = hw_string[:-1]
+		args[0].send('{}\r\n'.format(json.dumps({'state': 'OK', 'msg': hw_string})).encode())
 	args[1].put([json.dumps({'event' : 'send_data', 'data' : '(Hello world message)', 'client_from' : client_from})])
 # End command functions.
 
