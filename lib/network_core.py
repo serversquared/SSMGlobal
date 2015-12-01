@@ -45,50 +45,52 @@ def client_thread(client, q, buffer_size, cmd, libs):	# Client thread (one per c
 	client_mode = None
 	try:
 		while True:
-			if client_mode == 'HUMAN':	client.send('> '.encode())
+			try:
+				if client_mode == 'HUMAN':	client.send('> '.encode())
 
-			data = client.recv(buffer_size)
-			data = data.decode()
-			args = data[:-2].split()
-			data_json = None
-			try:	data_json = json.loads(data[:-2])
-			except ValueError:	pass
+				data = client.recv(buffer_size)
+				data = data.decode()
+				args = data[:-2].split()
+				data_json = None
+				try:	data_json = json.loads(data[:-2])
+				except ValueError:	pass
 
-			if data == '' or len(args) == 0:	break
-			q.put([json.dumps({'event': 'receive_data', 'data': data, 'client_from': client_from})])
+				if data == '' or len(args) == 0:	break
+				q.put([json.dumps({'event': 'receive_data', 'data': data, 'client_from': client_from})])
 
-			command = None
-			command_args = ()
-			if not client_mode:
-				if args[0].upper() == 'MODE' or (data_json and data_json['cmd'].upper() == 'MODE'):
-					command = 'MODE'
-					if data_json:	command_args = (data_json['args'].split())
-					else:	command_args = args[1:]
-				else:
-					client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'No mode set.'})).encode())
-					break
-			elif client_mode == 'HUMAN':
-				command = args[0]
-				if len(args) > 1:	command_args = args[1:]
-			elif client_mode == 'CLIENT':
-				if data_json:
-					if 'cmd' in data_json:	command = data_json['cmd']
-					if 'args' in data_json:	command_args = data_json['args'].split()
-				else:
-					client.send('{}\r\n'.format(format_message(client_mode, 'ERROR', 'Invalid JSON.')).encode())
-			elif client_mode == 'SERVER':
-				pass	# TODO: Server authentication.
+				command = None
+				command_args = ()
+				if not client_mode:
+					if args[0].upper() == 'MODE' or (data_json and data_json['cmd'].upper() == 'MODE'):
+						command = 'MODE'
+						if data_json:	command_args = (data_json['args'].split())
+						else:	command_args = args[1:]
+					else:
+						client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'No mode set.'})).encode())
+						break
+				elif client_mode == 'HUMAN':
+					command = args[0]
+					if len(args) > 1:	command_args = args[1:]
+				elif client_mode == 'CLIENT':
+					if data_json:
+						if 'cmd' in data_json:	command = data_json['cmd']
+						if 'args' in data_json:	command_args = data_json['args'].split()
+					else:
+						client.send('{}\r\n'.format(format_message(client_mode, 'ERROR', 'Invalid JSON.')).encode())
+				elif client_mode == 'SERVER':
+					pass	# TODO: Server authentication.
 
-			result = None
-			if command and command.upper() in cmd.command_dispatch:
-				result = cmd.command_dispatch[command.upper()](client, q, client_mode, libs, *command_args)
-			elif command:
-				client.send('{}\r\n'.format(format_message(client_mode, 'ERROR', 'Command not found.')).encode())
-				q.put([json.dumps({'event': 'receive_data', 'data': '(Error: Command not found.)', 'client_from': client_from})])
-			if type(result) is dict:
-				if 'break' in result and result['break']:	break
-				if 'client_mode' in result:	client_mode = result['client_mode']
-
+				result = None
+				if command and command.upper() in cmd.command_dispatch:
+					result = cmd.command_dispatch[command.upper()](client, q, client_mode, libs, *command_args)
+				elif command:
+					client.send('{}\r\n'.format(format_message(client_mode, 'ERROR', 'Command not found.')).encode())
+					q.put([json.dumps({'event': 'receive_data', 'data': '(Error: Command not found.)', 'client_from': client_from})])
+				if type(result) is dict:
+					if 'break' in result and result['break']:	break
+					if 'client_mode' in result:	client_mode = result['client_mode']
+			except BaseException:
+				break	# Close the client in attempt to preserve the server.
 		try:
 			client.shutdown(SHUT_RDWR)	# Properly shuts down the connection.
 		except BaseException:
