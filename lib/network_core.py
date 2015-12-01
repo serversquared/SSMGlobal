@@ -119,7 +119,7 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 					thread.daemon = True				# Daemonize the client thread.
 					thread.start()					# Start the client thread.
 				else:
-					client.send('ERROR TOO MANY CLIENTS\r\n'.encode())
+					client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Too many connections.'})).encode())
 					client.shutdown(SHUT_RDWR)		# Immediately terminate the connection.
 					client.close()
 				time.sleep(0.1)
@@ -127,7 +127,7 @@ def server_thread(server, q, buffer_size, timeout_seconds, max_clients, max_clie
 				try:
 					server.settimeout(0.1)				# Reload the queue 10 times per second.
 					client, client_from = server.accept()
-					client.send('ERROR SERVER FULL\r\n'.encode())
+					client.send('{}\r\n'.format(json.dumps({'state': 'ERROR', 'msg': 'Server full.'})).encode())
 					client.shutdown(SHUT_RDWR)		# Immediately terminate the connection.
 					client.close()
 				except timeout:
